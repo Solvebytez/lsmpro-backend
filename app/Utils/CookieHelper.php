@@ -19,12 +19,15 @@ class CookieHelper
         // SameSite=None is only needed for cross-origin requests
         $sameSite = 'Lax';
         
+        // Set domain explicitly for production (without leading dot - modern browsers prefer this)
+        $domain = $isSecure ? 'lsmpro.in' : null;
+        
         return $response->cookie(
             'access_token',
             $token,
             $expiresIn,
             '/',
-            null, // domain - null means current domain
+            $domain, // Explicit domain for production
             $isSecure, // secure - only true in production
             true, // httpOnly
             true, // raw - set to true to prevent Laravel from encrypting the token
@@ -46,12 +49,15 @@ class CookieHelper
         // SameSite=None is only needed for cross-origin requests
         $sameSite = 'Lax';
         
+        // Set domain explicitly for production (without leading dot - modern browsers prefer this)
+        $domain = $isSecure ? 'lsmpro.in' : null;
+        
         return $response->cookie(
             'refresh_token',
             $token,
             $expiresIn,
             '/',
-            null, // domain - null means current domain
+            $domain, // Explicit domain for production
             $isSecure, // secure - only true in production
             true, // httpOnly
             true, // raw - set to true to prevent Laravel from encrypting the token
@@ -75,7 +81,8 @@ class CookieHelper
     public static function clearAccessToken(Response|JsonResponse $response): Response|JsonResponse
     {
         $isSecure = env('APP_ENV') === 'production';
-        return $response->cookie('access_token', '', -1, '/', null, $isSecure, true, true, 'Lax');
+        $domain = $isSecure ? '.lsmpro.in' : null;
+        return $response->cookie('access_token', '', -1, '/', $domain, $isSecure, true, true, 'Lax');
     }
 
     /**
@@ -84,7 +91,8 @@ class CookieHelper
     public static function clearRefreshToken(Response|JsonResponse $response): Response|JsonResponse
     {
         $isSecure = env('APP_ENV') === 'production';
-        return $response->cookie('refresh_token', '', -1, '/', null, $isSecure, true, true, 'Lax');
+        $domain = $isSecure ? '.lsmpro.in' : null;
+        return $response->cookie('refresh_token', '', -1, '/', $domain, $isSecure, true, true, 'Lax');
     }
 
     /**
