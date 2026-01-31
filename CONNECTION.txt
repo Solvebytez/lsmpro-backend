@@ -1,0 +1,17 @@
+MySQL Database Connection Details
+==================================
+
+For MySQL Workbench or any MySQL client:
+
+Hostname: 127.0.0.1
+Port: 3308
+Username: gameloft_user (or root)
+Password: gameloft_password (or rootpassword)
+Database: gameloft_db
+
+phpMyAdmin Access:
+URL: http://localhost:8080
+Server: mysql
+Username: gameloft_user (or root)
+Password: gameloft_password (or rootpassword)
+
