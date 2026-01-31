@@ -15,9 +15,9 @@ class CookieHelper
         $expiresIn = (int) env('ACCESS_TOKEN_EXPIRES_IN', 15); // minutes, default 15
         // Use secure only in production (HTTPS), not in local development
         $isSecure = env('APP_ENV') === 'production';
-        // For local development (cross-origin: localhost:8000 -> localhost:3000), use Lax
-        // For production with same domain, use Lax or Strict
-        $sameSite = $isSecure ? 'None' : 'Lax';
+        // For same-domain (frontend and backend on lsmpro.in), use Lax
+        // SameSite=None is only needed for cross-origin requests
+        $sameSite = 'Lax';
         
         return $response->cookie(
             'access_token',
@@ -42,9 +42,9 @@ class CookieHelper
         $expiresIn = $expiresInDays * 24 * 60; // convert to minutes
         // Use secure only in production (HTTPS), not in local development
         $isSecure = env('APP_ENV') === 'production';
-        // For local development (cross-origin: localhost:8000 -> localhost:3000), use Lax
-        // For production with same domain, use Lax or Strict
-        $sameSite = $isSecure ? 'None' : 'Lax';
+        // For same-domain (frontend and backend on lsmpro.in), use Lax
+        // SameSite=None is only needed for cross-origin requests
+        $sameSite = 'Lax';
         
         return $response->cookie(
             'refresh_token',
