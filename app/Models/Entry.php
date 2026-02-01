@@ -11,7 +11,6 @@ class Entry extends Model
         'match_id',
         'user_scope',
         'user_id',
-        'group_id',
         'favourite_team',
         'team1_rate',
         'team1_amount',
@@ -41,14 +40,6 @@ class Entry extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    /**
-     * Get the group this entry belongs to (if group entry).
-     */
-    public function group(): BelongsTo
-    {
-        return $this->belongsTo(Group::class, 'group_id');
     }
 
     /**

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Entry;
 use App\Models\GameMatch;
 use App\Models\User;
-use App\Models\Group;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
@@ -59,9 +58,8 @@ class EntryController extends Controller
         try {
             $validated = $request->validate([
                 'match_id' => 'required|integer|exists:matches,id',
-                'user_scope' => 'required|in:all,customer,group',
+                'user_scope' => 'required|in:all,customer',
                 'user_id' => 'required_if:user_scope,customer|nullable|integer|exists:users,id',
-                'group_id' => 'required_if:user_scope,group|nullable|integer|exists:groups,id',
                 'favourite_team' => 'required|in:team1,team2',
                 'team1_rate' => 'nullable|numeric|min:0',
                 'team1_amount' => 'nullable|numeric|min:0',
@@ -99,7 +97,7 @@ class EntryController extends Controller
             ], 422);
         }
 
-        // Verify user or group belongs to this admin based on user_scope
+        // Verify user belongs to this admin based on user_scope
         if ($validated['user_scope'] === 'customer') {
             // Individual user entry
             $user = User::where('id', $validated['user_id'])
@@ -112,24 +110,9 @@ class EntryController extends Controller
                     'message' => 'User not found or you do not have permission to create entries for this user.',
                 ], 403);
             }
-            $validated['group_id'] = null;
-        } elseif ($validated['user_scope'] === 'group') {
-            // Group entry
-            $group = Group::where('id', $validated['group_id'])
-                ->where('created_by', $admin->id)
-                ->first();
-
-            if (!$group) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Group not found or you do not have permission to create entries for this group.',
-                ], 403);
-            }
-            $validated['user_id'] = null;
         } else {
-            // All user entry - both user_id and group_id should be null
+            // All user entry - user_id should be null
             $validated['user_id'] = null;
-            $validated['group_id'] = null;
         }
 
         try {
@@ -138,7 +121,6 @@ class EntryController extends Controller
                 'match_id' => $validated['match_id'],
                 'user_scope' => $validated['user_scope'],
                 'user_id' => $validated['user_id'] ?? null,
-                'group_id' => $validated['group_id'] ?? null,
                 'favourite_team' => $validated['favourite_team'],
                 'team1_rate' => $validated['team1_rate'] ?? null,
                 'team1_amount' => $validated['team1_amount'] ?? null,
@@ -152,7 +134,6 @@ class EntryController extends Controller
                 'match.team1',
                 'match.team2',
                 'user',
-                'group',
                 'creator'
             ]);
 
@@ -206,7 +187,6 @@ class EntryController extends Controller
             // Get entries for this match
             $entries = Entry::with([
                 'user',
-                'group',
                 'creator'
             ])
                 ->where('match_id', $matchId)
@@ -255,7 +235,6 @@ class EntryController extends Controller
                 'match.team1',
                 'match.team2',
                 'user',
-                'group',
                 'creator'
             ])
                 ->where('id', $id)
@@ -307,6 +286,7 @@ class EntryController extends Controller
         // Validate request data
         try {
             $validated = $request->validate([
+                'user_id' => 'sometimes|nullable|exists:users,id',
                 'favourite_team' => 'sometimes|in:team1,team2',
                 'team1_rate' => 'nullable|numeric|min:0',
                 'team1_amount' => 'nullable|numeric|min:0',
@@ -352,6 +332,20 @@ class EntryController extends Controller
                 ], 422);
             }
 
+            // If user_id is being updated, validate it belongs to this admin
+            if (isset($validated['user_id']) && $validated['user_id'] !== null) {
+                $user = \App\Models\User::where('id', $validated['user_id'])
+                    ->where('created_by', $admin->id)
+                    ->first();
+                
+                if (!$user) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not found or you do not have permission to assign entries to this user.',
+                    ], 422);
+                }
+            }
+
             // Update entry
             $entry->update($validated);
 
@@ -360,7 +354,6 @@ class EntryController extends Controller
                 'match.team1',
                 'match.team2',
                 'user',
-                'group',
                 'creator'
             ]);
 
@@ -442,8 +435,6 @@ class EntryController extends Controller
         $customer = null;
         if ($entry->user_scope === 'customer' && $entry->user_id) {
             $customer = $entry->user ? $entry->user->name : 'Unknown';
-        } elseif ($entry->user_scope === 'group' && $entry->group_id) {
-            $customer = $entry->group ? $entry->group->name : 'Unknown';
         } elseif ($entry->user_scope === 'all') {
             $customer = 'All Users';
         }
@@ -454,26 +445,33 @@ class EntryController extends Controller
         $team2Fav = null;
         $team2Nfav = null;
 
+        // Helper function to format rate without unnecessary decimals
+        $formatRate = function($rate) {
+            if ($rate === null) return null;
+            // Remove trailing zeros and decimal point if not needed
+            return rtrim(rtrim(number_format($rate, 2, '.', ''), '0'), '.');
+        };
+
         if ($entry->favourite_team === 'team1') {
             // Team 1 is favorite
             $team1Fav = $entry->team1_rate && $entry->team1_amount 
-                ? $entry->team1_rate . '/' . number_format($entry->team1_amount, 0, '.', '') 
+                ? $formatRate($entry->team1_rate) . '/' . number_format($entry->team1_amount * 1000, 0, '.', '') 
                 : '0/0000';
-            $team1Nfav = $entry->team1_rate && $entry->team1_amount ? '0' : '0';
-            $team2Fav = $entry->team2_rate && $entry->team2_amount ? '0' : '0';
+            $team1Nfav = '0';
+            $team2Fav = '0';
             $team2Nfav = $entry->team2_rate && $entry->team2_amount 
-                ? $entry->team2_rate . '/' . number_format($entry->team2_amount, 0, '.', '') 
+                ? $formatRate($entry->team2_rate) . '/' . number_format($entry->team2_amount * 1000, 0, '.', '') 
                 : '0/0000';
         } else {
             // Team 2 is favorite
-            $team1Fav = $entry->team1_rate && $entry->team1_amount ? '0' : '0';
+            $team1Fav = '0';
             $team1Nfav = $entry->team1_rate && $entry->team1_amount 
-                ? $entry->team1_rate . '/' . number_format($entry->team1_amount, 0, '.', '') 
+                ? $formatRate($entry->team1_rate) . '/' . number_format($entry->team1_amount * 1000, 0, '.', '') 
                 : '0/0000';
             $team2Fav = $entry->team2_rate && $entry->team2_amount 
-                ? $entry->team2_rate . '/' . number_format($entry->team2_amount, 0, '.', '') 
+                ? $formatRate($entry->team2_rate) . '/' . number_format($entry->team2_amount * 1000, 0, '.', '') 
                 : '0/0000';
-            $team2Nfav = $entry->team2_rate && $entry->team2_amount ? '0' : '0';
+            $team2Nfav = '0';
         }
 
         return [
@@ -481,7 +479,6 @@ class EntryController extends Controller
             'match_id' => $entry->match_id,
             'user_scope' => $entry->user_scope,
             'user_id' => $entry->user_id,
-            'group_id' => $entry->group_id,
             'customer' => $customer,
             'favourite_team' => $entry->favourite_team,
             'team1_rate' => $entry->team1_rate,
