@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Group;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -61,6 +62,7 @@ class UserController extends Controller
                 'commission' => 'required_if:commission_type,profit_loss,entrywise|numeric|min:0|max:100',
                 'partnership' => 'required|numeric|min:0|max:100',
                 'commission_type' => 'required|string|in:no_commission,profit_loss,entrywise',
+                'group_id' => 'nullable|integer|exists:groups,id',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -71,6 +73,21 @@ class UserController extends Controller
         }
 
         try {
+            // Validate group assignment if group_id is provided
+            if (isset($validated['group_id']) && $validated['group_id']) {
+                // Verify the group exists and belongs to this admin
+                $group = Group::where('id', $validated['group_id'])
+                    ->where('created_by', $admin->id)
+                    ->first();
+                
+                if (!$group) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Group not found or you do not have permission to assign users to this group.',
+                    ], 403);
+                }
+            }
+            
             // Set commission to 0 if no_commission is selected, partnership always uses the value
             $commission = $validated['commission_type'] === 'no_commission' ? 0 : ($validated['commission'] ?? 0);
             
@@ -88,31 +105,61 @@ class UserController extends Controller
                 'created_by' => $admin->id, // Track which admin created this user
             ]);
 
-            // Load creator relationship
-            $user->load('creator:id,name,email');
+            // Assign user to group if group_id is provided
+            if (isset($validated['group_id']) && $validated['group_id']) {
+                // For new users, check if they're already in any group (shouldn't happen, but safety check)
+                $existingGroups = $user->groups()->where('groups.id', '!=', $validated['group_id'])->get();
+                if ($existingGroups->count() > 0) {
+                    $existingGroupNames = $existingGroups->pluck('name')->join(', ');
+                    return response()->json([
+                        'success' => false,
+                        'message' => "User is already assigned to group(s): {$existingGroupNames}. Please remove the user from the existing group(s) first.",
+                    ], 422);
+                }
+                
+                // Check if user is already in the target group
+                $isAlreadyInGroup = $user->groups()->where('groups.id', $validated['group_id'])->exists();
+                if (!$isAlreadyInGroup) {
+                    // Attach user to the group
+                    $user->groups()->attach($validated['group_id']);
+                }
+            }
+
+            // Reload relationships to get groups if assigned
+            $user->load(['creator:id,name,email', 'groups']);
+
+            // Prepare response data
+            $responseData = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'mobile' => $user->mobile,
+                'role' => $user->role,
+                'commission' => $user->commission,
+                'partnership' => $user->partnership,
+                'commission_type' => $user->commission_type,
+                'status' => $user->status,
+                'created_by' => $user->created_by,
+                'creator' => $user->creator ? [
+                    'id' => $user->creator->id,
+                    'name' => $user->creator->name,
+                    'email' => $user->creator->email,
+                ] : null,
+                'group_id' => $user->groups->first()?->id ?? null,
+                'groups' => $user->groups->map(function ($group) {
+                    return [
+                        'id' => $group->id,
+                        'name' => $group->name,
+                    ];
+                })->toArray(),
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+            ];
 
             return response()->json([
                 'success' => true,
                 'message' => 'User created successfully',
-                'data' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'mobile' => $user->mobile,
-                    'role' => $user->role,
-                    'commission' => $user->commission,
-                    'partnership' => $user->partnership,
-                    'commission_type' => $user->commission_type,
-                    'status' => $user->status,
-                    'created_by' => $user->created_by,
-                    'creator' => $user->creator ? [
-                        'id' => $user->creator->id,
-                        'name' => $user->creator->name,
-                        'email' => $user->creator->email,
-                    ] : null,
-                    'created_at' => $user->created_at,
-                    'updated_at' => $user->updated_at,
-                ],
+                'data' => $responseData,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -141,7 +188,7 @@ class UserController extends Controller
 
         try {
             // Filter users to only show those created by this admin
-            $users = User::with('creator:id,name,email')
+            $users = User::with(['creator:id,name,email', 'groups'])
                 ->where('created_by', $admin->id) // Only show users created by this admin
                 ->select([
                     'id',
@@ -159,7 +206,20 @@ class UserController extends Controller
                     'updated_at',
                 ])
                 ->orderBy('created_at', 'desc')
-                ->get();
+                ->get()
+                ->map(function ($user) {
+                    $userArray = $user->toArray();
+                    // Add group_id from the first group (since user can only be in one group)
+                    $userArray['group_id'] = $user->groups->first()?->id ?? null;
+                    // Ensure groups array is included with id and name
+                    $userArray['groups'] = $user->groups->map(function ($group) {
+                        return [
+                            'id' => $group->id,
+                            'name' => $group->name,
+                        ];
+                    })->toArray();
+                    return $userArray;
+                });
 
             return response()->json([
                 'success' => true,
@@ -261,6 +321,7 @@ class UserController extends Controller
                 'commission' => 'required_if:commission_type,profit_loss,entrywise|numeric|min:0|max:100',
                 'partnership' => 'sometimes|required|numeric|min:0|max:100',
                 'commission_type' => 'sometimes|required|string|in:no_commission,profit_loss,entrywise',
+                'group_id' => 'nullable|integer|exists:groups,id',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -309,32 +370,76 @@ class UserController extends Controller
             }
 
             $user->save();
+            
+            // Handle group assignment if group_id is provided
+            if (isset($validated['group_id'])) {
+                $newGroupId = $validated['group_id'] ? (int)$validated['group_id'] : null;
+                
+                if ($newGroupId) {
+                    // Verify the group exists and belongs to this admin
+                    $group = Group::where('id', $newGroupId)
+                        ->where('created_by', $admin->id)
+                        ->first();
+                    
+                    if (!$group) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Group not found or you do not have permission to assign users to this group.',
+                        ], 403);
+                    }
+                    
+                    // Check if user is already in this group
+                    $isAlreadyInGroup = $user->groups()->where('groups.id', $newGroupId)->exists();
+                    
+                    if (!$isAlreadyInGroup) {
+                        // First, detach user from all existing groups (to allow changing groups)
+                        $user->groups()->detach();
+                        
+                        // Then attach user to the new group
+                        $user->groups()->attach($newGroupId);
+                    }
+                    // If user is already in this group, no action needed
+                } else {
+                    // If group_id is null, remove user from all groups
+                    $user->groups()->detach();
+                }
+            }
 
-            // Load creator relationship
-            $user->load('creator:id,name,email');
+            // Reload relationships to get updated groups
+            $user->load(['creator:id,name,email', 'groups']);
+
+            // Prepare response data
+            $responseData = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'mobile' => $user->mobile,
+                'role' => $user->role,
+                'commission' => $user->commission,
+                'partnership' => $user->partnership,
+                'commission_type' => $user->commission_type,
+                'status' => $user->status,
+                'created_by' => $user->created_by,
+                'creator' => $user->creator ? [
+                    'id' => $user->creator->id,
+                    'name' => $user->creator->name,
+                    'email' => $user->creator->email,
+                ] : null,
+                'group_id' => $user->groups->first()?->id ?? null,
+                'groups' => $user->groups->map(function ($group) {
+                    return [
+                        'id' => $group->id,
+                        'name' => $group->name,
+                    ];
+                })->toArray(),
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+            ];
 
             return response()->json([
                 'success' => true,
                 'message' => 'User updated successfully',
-                'data' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'mobile' => $user->mobile,
-                    'role' => $user->role,
-                    'commission' => $user->commission,
-                    'partnership' => $user->partnership,
-                    'commission_type' => $user->commission_type,
-                    'status' => $user->status,
-                    'created_by' => $user->created_by,
-                    'creator' => $user->creator ? [
-                        'id' => $user->creator->id,
-                        'name' => $user->creator->name,
-                        'email' => $user->creator->email,
-                    ] : null,
-                    'created_at' => $user->created_at,
-                    'updated_at' => $user->updated_at,
-                ],
+                'data' => $responseData,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

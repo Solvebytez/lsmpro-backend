@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Group;
+use App\Models\InningsOver;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
-class GroupController extends Controller
+class InningsOverController extends Controller
 {
     /**
      * Manually authenticate admin from token to avoid infinite recursion with Sanctum guard.
@@ -38,9 +38,9 @@ class GroupController extends Controller
     }
 
     /**
-     * Create a new group with users.
+     * Create a new innings/over entry.
      */
-    public function createGroup(Request $request): JsonResponse
+    public function createInningsOver(Request $request): JsonResponse
     {
         // Manually authenticate to avoid infinite recursion
         $admin = $this->getAuthenticatedAdmin($request);
@@ -55,7 +55,8 @@ class GroupController extends Controller
         // Validate request data
         try {
             $validated = $request->validate([
-                'name' => 'required|string|max:255',
+                'inning' => 'required|integer|min:1',
+                'over' => 'required|integer|min:1',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -66,54 +67,46 @@ class GroupController extends Controller
         }
 
         try {
-            // Create the group
-            $group = Group::create([
-                'name' => $validated['name'],
-                'total_commission' => 0,
+            // Create the innings/over entry
+            $inningsOver = InningsOver::create([
+                'inning' => $validated['inning'],
+                'over' => $validated['over'],
                 'created_by' => $admin->id,
             ]);
 
             // Load relationships
-            $group->load(['users', 'creator:id,name,email']);
+            $inningsOver->load(['creator:id,name,email']);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Group created successfully',
+                'message' => 'Innings/Over created successfully',
                 'data' => [
-                    'id' => $group->id,
-                    'name' => $group->name,
-                    'total_commission' => $group->total_commission,
-                    'created_by' => $group->created_by,
-                    'creator' => $group->creator ? [
-                        'id' => $group->creator->id,
-                        'name' => $group->creator->name,
-                        'email' => $group->creator->email,
+                    'id' => $inningsOver->id,
+                    'inning' => $inningsOver->inning,
+                    'over' => $inningsOver->over,
+                    'created_by' => $inningsOver->created_by,
+                    'creator' => $inningsOver->creator ? [
+                        'id' => $inningsOver->creator->id,
+                        'name' => $inningsOver->creator->name,
+                        'email' => $inningsOver->creator->email,
                     ] : null,
-                    'users' => $group->users->map(function ($user) {
-                        return [
-                            'id' => $user->id,
-                            'name' => $user->name,
-                            'role' => $user->role,
-                            'status' => $user->status,
-                        ];
-                    }),
-                    'created_at' => $group->created_at,
-                    'updated_at' => $group->updated_at,
+                    'created_at' => $inningsOver->created_at,
+                    'updated_at' => $inningsOver->updated_at,
                 ],
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create group',
+                'message' => 'Failed to create innings/over',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Get all groups created by the authenticated admin.
+     * Get all innings/over entries created by the authenticated admin.
      */
-    public function listGroups(Request $request): JsonResponse
+    public function listInningsOvers(Request $request): JsonResponse
     {
         // Manually authenticate to avoid infinite recursion
         $admin = $this->getAuthenticatedAdmin($request);
@@ -126,53 +119,44 @@ class GroupController extends Controller
         }
 
         try {
-            // Filter groups to only show those created by this admin
-            $groups = Group::with(['users', 'creator:id,name,email'])
+            // Filter innings/overs to only show those created by this admin
+            $inningsOvers = InningsOver::with(['creator:id,name,email'])
                 ->where('created_by', $admin->id)
                 ->orderBy('created_at', 'desc')
                 ->get()
-                ->map(function ($group) {
+                ->map(function ($inningsOver) {
                     return [
-                        'id' => $group->id,
-                        'name' => $group->name,
-                        'total_commission' => $group->total_commission,
-                        'created_by' => $group->created_by,
-                        'creator' => $group->creator ? [
-                            'id' => $group->creator->id,
-                            'name' => $group->creator->name,
-                            'email' => $group->creator->email,
+                        'id' => $inningsOver->id,
+                        'inning' => $inningsOver->inning,
+                        'over' => $inningsOver->over,
+                        'created_by' => $inningsOver->created_by,
+                        'creator' => $inningsOver->creator ? [
+                            'id' => $inningsOver->creator->id,
+                            'name' => $inningsOver->creator->name,
+                            'email' => $inningsOver->creator->email,
                         ] : null,
-                        'users' => $group->users->map(function ($user) {
-                            return [
-                                'id' => $user->id,
-                                'name' => $user->name,
-                                'role' => $user->role,
-                                'status' => $user->status,
-                            ];
-                        }),
-                        'user_count' => $group->users->count(),
-                        'created_at' => $group->created_at,
-                        'updated_at' => $group->updated_at,
+                        'created_at' => $inningsOver->created_at,
+                        'updated_at' => $inningsOver->updated_at,
                     ];
                 });
 
             return response()->json([
                 'success' => true,
-                'data' => $groups,
+                'data' => $inningsOvers,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch groups',
+                'message' => 'Failed to fetch innings/overs',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Update an existing group.
+     * Update an existing innings/over entry.
      */
-    public function updateGroup(Request $request, int $id): JsonResponse
+    public function updateInningsOver(Request $request, int $id): JsonResponse
     {
         // Manually authenticate to avoid infinite recursion
         $admin = $this->getAuthenticatedAdmin($request);
@@ -187,7 +171,8 @@ class GroupController extends Controller
         // Validate request data
         try {
             $validated = $request->validate([
-                'name' => 'sometimes|required|string|max:255',
+                'inning' => 'sometimes|required|integer|min:1',
+                'over' => 'sometimes|required|integer|min:1',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -198,67 +183,62 @@ class GroupController extends Controller
         }
 
         try {
-            // Find the group and verify ownership
-            $group = Group::where('id', $id)
+            // Find the innings/over entry and verify ownership
+            $inningsOver = InningsOver::where('id', $id)
                 ->where('created_by', $admin->id)
                 ->first();
 
-            if (!$group) {
+            if (!$inningsOver) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Group not found or you do not have permission to update it.',
+                    'message' => 'Innings/Over entry not found or you do not have permission to update it.',
                 ], 404);
             }
 
-            // Update group name if provided
-            if (isset($validated['name'])) {
-                $group->name = $validated['name'];
+            // Update fields if provided
+            if (isset($validated['inning'])) {
+                $inningsOver->inning = $validated['inning'];
+            }
+            if (isset($validated['over'])) {
+                $inningsOver->over = $validated['over'];
             }
 
-            // Save the group
-            $group->save();
+            // Save the entry
+            $inningsOver->save();
 
             // Load relationships
-            $group->load(['users', 'creator:id,name,email']);
+            $inningsOver->load(['creator:id,name,email']);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Group updated successfully',
+                'message' => 'Innings/Over updated successfully',
                 'data' => [
-                    'id' => $group->id,
-                    'name' => $group->name,
-                    'total_commission' => $group->total_commission,
-                    'created_by' => $group->created_by,
-                    'creator' => $group->creator ? [
-                        'id' => $group->creator->id,
-                        'name' => $group->creator->name,
-                        'email' => $group->creator->email,
+                    'id' => $inningsOver->id,
+                    'inning' => $inningsOver->inning,
+                    'over' => $inningsOver->over,
+                    'created_by' => $inningsOver->created_by,
+                    'creator' => $inningsOver->creator ? [
+                        'id' => $inningsOver->creator->id,
+                        'name' => $inningsOver->creator->name,
+                        'email' => $inningsOver->creator->email,
                     ] : null,
-                    'users' => $group->users->map(function ($user) {
-                        return [
-                            'id' => $user->id,
-                            'name' => $user->name,
-                            'role' => $user->role,
-                            'status' => $user->status,
-                        ];
-                    }),
-                    'created_at' => $group->created_at,
-                    'updated_at' => $group->updated_at,
+                    'created_at' => $inningsOver->created_at,
+                    'updated_at' => $inningsOver->updated_at,
                 ],
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update group',
+                'message' => 'Failed to update innings/over',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Delete a group.
+     * Delete an innings/over entry.
      */
-    public function deleteGroup(Request $request, int $id): JsonResponse
+    public function deleteInningsOver(Request $request, int $id): JsonResponse
     {
         // Manually authenticate to avoid infinite recursion
         $admin = $this->getAuthenticatedAdmin($request);
@@ -271,31 +251,32 @@ class GroupController extends Controller
         }
 
         try {
-            // Find the group and verify ownership
-            $group = Group::where('id', $id)
+            // Find the innings/over entry and verify ownership
+            $inningsOver = InningsOver::where('id', $id)
                 ->where('created_by', $admin->id)
                 ->first();
 
-            if (!$group) {
+            if (!$inningsOver) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Group not found or you do not have permission to delete it.',
+                    'message' => 'Innings/Over entry not found or you do not have permission to delete it.',
                 ], 404);
             }
 
-            // Delete the group (relationships will be cascade deleted)
-            $group->delete();
+            // Delete the entry
+            $inningsOver->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Group deleted successfully',
+                'message' => 'Innings/Over deleted successfully',
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete group',
+                'message' => 'Failed to delete innings/over',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 }
+

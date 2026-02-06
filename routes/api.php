@@ -11,6 +11,8 @@ use App\Http\Controllers\TeamController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\EntryController;
+use App\Http\Controllers\InningsOverController;
+use App\Http\Controllers\SessionController;
 
 // Health check endpoint
 Route::get('/health', function () {
@@ -121,6 +123,19 @@ Route::prefix('v1/admin')->group(function () {
     Route::get('/groups', [GroupController::class, 'listGroups']);
     Route::put('/groups/{id}', [GroupController::class, 'updateGroup']);
     Route::delete('/groups/{id}', [GroupController::class, 'deleteGroup']);
+    
+    // Innings/Over management routes (authentication handled manually in controller)
+    Route::post('/innings-overs', [InningsOverController::class, 'createInningsOver']);
+    Route::get('/innings-overs', [InningsOverController::class, 'listInningsOvers']);
+    Route::put('/innings-overs/{id}', [InningsOverController::class, 'updateInningsOver']);
+    Route::delete('/innings-overs/{id}', [InningsOverController::class, 'deleteInningsOver']);
+    
+    // Session management routes (authentication handled manually in controller)
+    Route::post('/sessions', [SessionController::class, 'createSession']);
+    Route::get('/sessions', [SessionController::class, 'listSessions']);
+    Route::put('/sessions/{id}', [SessionController::class, 'updateSession']);
+    Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
+    Route::post('/sessions/update-result', [SessionController::class, 'updateResultByInningsOver']);
 });
 
 // Common Authentication Routes (works for both admin and superadmin)
