@@ -165,7 +165,7 @@ class SessionController extends Controller
 
         try {
             // Filter sessions to only show those created by this admin
-            $query = Session::with(['match.team1', 'match.team2', 'user', 'creator:id,name,email'])
+            $query = Session::with(['match.team1', 'match.team2', 'user.groups', 'creator:id,name,email'])
                 ->where('created_by', $admin->id);
             
             // Filter by match_id if provided
@@ -176,12 +176,19 @@ class SessionController extends Controller
             $sessions = $query->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($session) {
+                    // Get the first group name if user has groups
+                    $groupName = null;
+                    if ($session->user && $session->user->groups && $session->user->groups->isNotEmpty()) {
+                        $groupName = $session->user->groups->first()->name;
+                    }
+                    
                     return [
                         'id' => $session->id,
                         'match_id' => $session->match_id,
                         'match_name' => $session->match ? "{$session->match->team1->name} vs {$session->match->team2->name}" : null,
                         'user_id' => $session->user_id,
                         'user_name' => $session->user ? $session->user->name : null,
+                        'group_name' => $groupName,
                         'inning_over' => $session->inning_over,
                         'entry_run' => $session->entry_run,
                         'amount' => $session->amount,
