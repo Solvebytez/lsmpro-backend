@@ -132,10 +132,13 @@ class GroupController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($group) {
+                    // Calculate total commission from all users in the group
+                    $totalCommission = $group->users->sum('commission');
+                    
                     return [
                         'id' => $group->id,
                         'name' => $group->name,
-                        'total_commission' => $group->total_commission,
+                        'total_commission' => $totalCommission,
                         'created_by' => $group->created_by,
                         'creator' => $group->creator ? [
                             'id' => $group->creator->id,
@@ -148,6 +151,7 @@ class GroupController extends Controller
                                 'name' => $user->name,
                                 'role' => $user->role,
                                 'status' => $user->status,
+                                'commission' => $user->commission,
                             ];
                         }),
                         'user_count' => $group->users->count(),

@@ -62,6 +62,8 @@ class UserController extends Controller
                 'commission' => 'required_if:commission_type,profit_loss,entrywise|numeric|min:0|max:100',
                 'partnership' => 'required|numeric|min:0|max:100',
                 'commission_type' => 'required|string|in:no_commission,profit_loss,entrywise',
+                'session_commission' => 'required_if:session_commission_type,profit_loss,entrywise|numeric|min:0|max:100',
+                'session_commission_type' => 'required|string|in:no_commission,profit_loss,entrywise',
                 'group_id' => 'nullable|integer|exists:groups,id',
             ]);
         } catch (ValidationException $e) {
@@ -90,6 +92,7 @@ class UserController extends Controller
             
             // Set commission to 0 if no_commission is selected, partnership always uses the value
             $commission = $validated['commission_type'] === 'no_commission' ? 0 : ($validated['commission'] ?? 0);
+            $sessionCommission = $validated['session_commission_type'] === 'no_commission' ? 0 : ($validated['session_commission'] ?? 0);
             
             // Create the user
             $user = User::create([
@@ -101,6 +104,8 @@ class UserController extends Controller
                 'commission' => $commission,
                 'partnership' => $validated['partnership'],
                 'commission_type' => $validated['commission_type'],
+                'session_commission' => $sessionCommission,
+                'session_commission_type' => $validated['session_commission_type'],
                 'status' => 'active', // Default status
                 'created_by' => $admin->id, // Track which admin created this user
             ]);
@@ -138,6 +143,8 @@ class UserController extends Controller
                 'commission' => $user->commission,
                 'partnership' => $user->partnership,
                 'commission_type' => $user->commission_type,
+                'session_commission' => $user->session_commission,
+                'session_commission_type' => $user->session_commission_type,
                 'status' => $user->status,
                 'created_by' => $user->created_by,
                 'creator' => $user->creator ? [
@@ -199,6 +206,8 @@ class UserController extends Controller
                     'commission',
                     'partnership',
                     'commission_type',
+                    'session_commission',
+                    'session_commission_type',
                     'last_login',
                     'status',
                     'created_by',
@@ -321,6 +330,8 @@ class UserController extends Controller
                 'commission' => 'required_if:commission_type,profit_loss,entrywise|numeric|min:0|max:100',
                 'partnership' => 'sometimes|required|numeric|min:0|max:100',
                 'commission_type' => 'sometimes|required|string|in:no_commission,profit_loss,entrywise',
+                'session_commission' => 'nullable|numeric|min:0|max:100',
+                'session_commission_type' => 'sometimes|required|string|in:no_commission,profit_loss,entrywise',
                 'group_id' => 'nullable|integer|exists:groups,id',
             ]);
         } catch (ValidationException $e) {
@@ -367,6 +378,23 @@ class UserController extends Controller
             }
             if (isset($validated['partnership'])) {
                 $user->partnership = $validated['partnership'];
+            }
+            if (isset($validated['session_commission_type'])) {
+                $user->session_commission_type = $validated['session_commission_type'];
+                // Set session_commission to 0 if no_commission is selected
+                if ($validated['session_commission_type'] === 'no_commission') {
+                    $user->session_commission = 0;
+                } elseif (isset($validated['session_commission']) && $validated['session_commission'] !== null) {
+                    // Update session_commission if provided
+                    $user->session_commission = $validated['session_commission'];
+                }
+                // If session_commission_type is not 'no_commission' but session_commission is not provided,
+                // keep the existing value (don't reset to 0)
+            } elseif (isset($validated['session_commission']) && $validated['session_commission'] !== null) {
+                // Only update session_commission if session_commission_type is not no_commission
+                if ($user->session_commission_type !== 'no_commission') {
+                    $user->session_commission = $validated['session_commission'];
+                }
             }
 
             $user->save();
@@ -418,6 +446,8 @@ class UserController extends Controller
                 'commission' => $user->commission,
                 'partnership' => $user->partnership,
                 'commission_type' => $user->commission_type,
+                'session_commission' => $user->session_commission,
+                'session_commission_type' => $user->session_commission_type,
                 'status' => $user->status,
                 'created_by' => $user->created_by,
                 'creator' => $user->creator ? [

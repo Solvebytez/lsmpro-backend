@@ -26,6 +26,8 @@ class User extends Authenticatable
         'commission',
         'partnership',
         'commission_type',
+        'session_commission',
+        'session_commission_type',
         'status',
         'created_by',
     ];
