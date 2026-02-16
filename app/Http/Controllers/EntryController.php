@@ -185,11 +185,20 @@ class EntryController extends Controller
             }
 
             // Get entries for this match
-            $entries = Entry::with([
+            // Optionally filter by user_id if provided in query parameter
+            $query = Entry::with([
                 'user',
                 'creator'
             ])
-                ->where('match_id', $matchId)
+                ->where('match_id', $matchId);
+            
+            // Filter by user_id if provided and not "all"
+            $userId = $request->query('user_id');
+            if ($userId && $userId !== 'all' && $userId !== '') {
+                $query->where('user_id', $userId);
+            }
+            
+            $entries = $query
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($entry) {
