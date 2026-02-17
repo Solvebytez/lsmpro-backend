@@ -90,6 +90,7 @@ Route::prefix('v1/admin')->group(function () {
     
     // Routes without auth:sanctum middleware (authentication handled manually in controller)
     Route::post('/logout', [AdminAuthController::class, 'logout']);
+    Route::post('/change-password', [AdminAuthController::class, 'changePassword']);
     
     // User management routes (authentication handled manually in controller)
     Route::post('/users', [UserController::class, 'createUser']);
