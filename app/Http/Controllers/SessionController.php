@@ -125,10 +125,10 @@ class SessionController extends Controller
                     'user_name' => $session->user ? $session->user->name : null,
                     'inning_over' => $session->inning_over,
                     'entry_run' => $session->entry_run,
-                    'amount' => $session->amount,
+                    'amount' => $session->amount * 1000,
                     'is_yes' => $session->is_yes,
                     'result' => $session->result,
-                    'net_profit_loss' => $session->net_profit_loss,
+                    'net_profit_loss' => $session->net_profit_loss * 1000,
                     'created_by' => $session->created_by,
                     'creator' => $session->creator ? [
                         'id' => $session->creator->id,
@@ -191,7 +191,7 @@ class SessionController extends Controller
                         'group_name' => $groupName,
                         'inning_over' => $session->inning_over,
                         'entry_run' => $session->entry_run,
-                        'amount' => $session->amount,
+                        'amount' => $session->amount * 1000,
                         'is_yes' => $session->is_yes,
                         'result' => $session->result,
                         'net_profit_loss' => $session->net_profit_loss,
@@ -314,10 +314,10 @@ class SessionController extends Controller
                     'user_name' => $session->user ? $session->user->name : null,
                     'inning_over' => $session->inning_over,
                     'entry_run' => $session->entry_run,
-                    'amount' => $session->amount,
+                    'amount' => $session->amount * 1000,
                     'is_yes' => $session->is_yes,
                     'result' => $session->result,
-                    'net_profit_loss' => $session->net_profit_loss,
+                    'net_profit_loss' => $session->net_profit_loss * 1000,
                     'created_by' => $session->created_by,
                     'creator' => $session->creator ? [
                         'id' => $session->creator->id,
@@ -449,9 +449,9 @@ class SessionController extends Controller
                     'user_id' => $session->user_id,
                     'entry_run' => $session->entry_run,
                     'is_yes' => $session->is_yes,
-                    'amount' => $session->amount,
+                    'amount' => $session->amount * 1000,
                     'result' => $session->result,
-                    'net_profit_loss' => $session->net_profit_loss,
+                    'net_profit_loss' => $session->net_profit_loss * 1000,
                 ];
             }
 
