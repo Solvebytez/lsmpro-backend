@@ -66,7 +66,6 @@ Route::prefix('v1/superadmin')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [SuperAdminAuthController::class, 'me']);
         Route::put('/admins/{id}', [SuperAdminAuthController::class, 'updateAdmin']);
-        Route::delete('/admins/{id}', [SuperAdminAuthController::class, 'deleteAdmin']);
     });
     
     // Routes without auth:sanctum middleware (authentication handled manually in controller)
@@ -74,6 +73,7 @@ Route::prefix('v1/superadmin')->group(function () {
     Route::get('/admins', [SuperAdminAuthController::class, 'listAdmins']);
     Route::post('/create-admin', [SuperAdminAuthController::class, 'createAdmin']);
     Route::patch('/admins/{id}/status', [SuperAdminAuthController::class, 'updateStatus']);
+    Route::delete('/admins/{id}', [SuperAdminAuthController::class, 'deleteAdmin']);
 });
 
 // Admin Authentication Routes

@@ -194,7 +194,7 @@ class SessionController extends Controller
                         'amount' => $session->amount * 1000,
                         'is_yes' => $session->is_yes,
                         'result' => $session->result,
-                        'net_profit_loss' => $session->net_profit_loss,
+                        'net_profit_loss' => $session->net_profit_loss * 1000,
                         'created_by' => $session->created_by,
                         'creator' => $session->creator ? [
                             'id' => $session->creator->id,

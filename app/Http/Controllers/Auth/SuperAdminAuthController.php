@@ -545,39 +545,77 @@ class SuperAdminAuthController extends Controller
      */
     public function deleteAdmin(Request $request, $id)
     {
-        // Manually authenticate to avoid infinite recursion
-        $currentUser = $this->getAuthenticatedUser($request);
-        if (!$currentUser) {
-            // Return 401 for authentication failure (so axios interceptor can refresh token)
+        try {
+            // Manually authenticate to avoid infinite recursion
+            $currentUser = $this->getAuthenticatedUser($request);
+            if (!$currentUser) {
+                // Return 401 for authentication failure (so axios interceptor can refresh token)
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated',
+                ], 401);
+            }
+            
+            if ($currentUser->role !== 'superadmin') {
+                // Return 403 for authorization failure (user is authenticated but lacks permission)
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized. Only superadmin can delete admins.',
+                ], 403);
+            }
+
+            $admin = Admin::where('id', $id)->where('role', 'admin')->first();
+
+            if (!$admin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Admin not found',
+                ], 404);
+            }
+
+            // Check if admin has created entries (which have restrict constraint)
+            $entriesCount = \DB::table('entries')
+                ->where('created_by', $id)
+                ->count();
+
+            if ($entriesCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Cannot delete admin. This admin has created {$entriesCount} " . ($entriesCount === 1 ? 'entry' : 'entries') . " that must be preserved. Please reassign or delete the entries first.",
+                    'entries_count' => $entriesCount,
+                ], 422);
+            }
+
+            // Attempt to delete the admin
+            $admin->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Admin deleted successfully',
+            ], 200);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle database constraint violations
+            if ($e->getCode() == 23000) { // SQLSTATE[23000]: Integrity constraint violation
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete admin. This admin is referenced by other records in the system.',
+                ], 422);
+            }
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthenticated',
-            ], 401);
-        }
-        
-        if ($currentUser->role !== 'superadmin') {
-            // Return 403 for authorization failure (user is authenticated but lacks permission)
+                'message' => 'Error deleting admin: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Only superadmin can delete admins.',
-            ], 403);
+                'message' => 'Error deleting admin: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : null,
+                'file' => config('app.debug') ? basename($e->getFile()) : null,
+                'line' => config('app.debug') ? $e->getLine() : null,
+            ], 500);
         }
-
-        $admin = Admin::where('id', $id)->where('role', 'admin')->first();
-
-        if (!$admin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Admin not found',
-            ], 404);
-        }
-
-        $admin->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Admin deleted successfully',
-        ], 200);
     }
 
     /**

@@ -65,6 +65,7 @@ class UserController extends Controller
                 'session_commission' => 'required_if:session_commission_type,profit_loss,entrywise|numeric|min:0|max:100',
                 'session_commission_type' => 'required|string|in:no_commission,profit_loss,entrywise',
                 'group_id' => 'nullable|integer|exists:groups,id',
+                'mark_as_cut' => 'nullable|string|in:no,yes',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -108,6 +109,7 @@ class UserController extends Controller
                 'session_commission_type' => $validated['session_commission_type'],
                 'status' => 'active', // Default status
                 'created_by' => $admin->id, // Track which admin created this user
+                'mark_as_cut' => $validated['mark_as_cut'] ?? 'no', // Default to 'no'
             ]);
 
             // Assign user to group if group_id is provided
@@ -147,6 +149,7 @@ class UserController extends Controller
                 'session_commission_type' => $user->session_commission_type,
                 'status' => $user->status,
                 'created_by' => $user->created_by,
+                'mark_as_cut' => $user->mark_as_cut ?? 'no',
                 'creator' => $user->creator ? [
                     'id' => $user->creator->id,
                     'name' => $user->creator->name,
@@ -211,6 +214,7 @@ class UserController extends Controller
                     'last_login',
                     'status',
                     'created_by',
+                    'mark_as_cut',
                     'created_at',
                     'updated_at',
                 ])
@@ -333,6 +337,7 @@ class UserController extends Controller
                 'session_commission' => 'nullable|numeric|min:0|max:100',
                 'session_commission_type' => 'sometimes|required|string|in:no_commission,profit_loss,entrywise',
                 'group_id' => 'nullable|integer|exists:groups,id',
+                'mark_as_cut' => 'nullable|string|in:no,yes',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -378,6 +383,9 @@ class UserController extends Controller
             }
             if (isset($validated['partnership'])) {
                 $user->partnership = $validated['partnership'];
+            }
+            if (isset($validated['mark_as_cut'])) {
+                $user->mark_as_cut = $validated['mark_as_cut'];
             }
             if (isset($validated['session_commission_type'])) {
                 $user->session_commission_type = $validated['session_commission_type'];
@@ -450,6 +458,7 @@ class UserController extends Controller
                 'session_commission_type' => $user->session_commission_type,
                 'status' => $user->status,
                 'created_by' => $user->created_by,
+                'mark_as_cut' => $user->mark_as_cut ?? 'no',
                 'creator' => $user->creator ? [
                     'id' => $user->creator->id,
                     'name' => $user->creator->name,

@@ -30,6 +30,7 @@ class User extends Authenticatable
         'session_commission_type',
         'status',
         'created_by',
+        'mark_as_cut',
     ];
 
     /**
