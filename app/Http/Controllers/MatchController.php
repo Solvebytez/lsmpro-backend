@@ -330,4 +330,197 @@ class MatchController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Update a match.
+     */
+    public function updateMatch(Request $request, $id): JsonResponse
+    {
+        // Manually authenticate to avoid infinite recursion
+        $admin = $this->getAuthenticatedAdmin($request);
+        
+        if (!$admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated. Please login first.',
+            ], 401);
+        }
+
+        // Validate request data
+        try {
+            $validated = $request->validate([
+                'team1_id' => 'sometimes|required|integer|exists:teams,id',
+                'team2_id' => 'sometimes|required|integer|exists:teams,id',
+                'match_date' => 'sometimes|required|date',
+            ]);
+
+            // Validate that team1 and team2 are different if both are provided
+            if (isset($validated['team1_id']) && isset($validated['team2_id']) && $validated['team1_id'] === $validated['team2_id']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Team 1 and Team 2 must be different',
+                    'errors' => ['team2_id' => ['Team 1 and Team 2 must be different']],
+                ], 422);
+            }
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        try {
+            // Find the match and verify it belongs to this admin
+            $match = GameMatch::where('id', $id)
+                ->where('created_by', $admin->id)
+                ->first();
+
+            if (!$match) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Match not found or you do not have permission to update it.',
+                ], 404);
+            }
+
+            // Verify teams belong to this admin if they are being updated
+            if (isset($validated['team1_id'])) {
+                $team1 = Team::where('id', $validated['team1_id'])
+                    ->where('created_by', $admin->id)
+                    ->first();
+                
+                if (!$team1) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Team 1 not found or you do not have permission to use it.',
+                    ], 403);
+                }
+                $match->team1_id = $validated['team1_id'];
+            }
+
+            if (isset($validated['team2_id'])) {
+                $team2 = Team::where('id', $validated['team2_id'])
+                    ->where('created_by', $admin->id)
+                    ->first();
+                
+                if (!$team2) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Team 2 not found or you do not have permission to use it.',
+                    ], 403);
+                }
+                $match->team2_id = $validated['team2_id'];
+            }
+
+            if (isset($validated['match_date'])) {
+                $match->match_date = $validated['match_date'];
+            }
+
+            $match->save();
+
+            // Load relationships
+            $match->load([
+                'team1:id,name,logo,status',
+                'team2:id,name,logo,status',
+                'winner',
+                'creator:id,name,email'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Match updated successfully',
+                'data' => [
+                    'id' => $match->id,
+                    'team1_id' => $match->team1_id,
+                    'team2_id' => $match->team2_id,
+                    'team1' => [
+                        'id' => $match->team1->id,
+                        'name' => $match->team1->name,
+                        'logo' => $match->team1->logo_url ?? null,
+                    ],
+                    'team2' => [
+                        'id' => $match->team2->id,
+                        'name' => $match->team2->name,
+                        'logo' => $match->team2->logo_url ?? null,
+                    ],
+                    'match_between' => $match->match_between,
+                    'match_date' => $match->match_date->format('Y-m-d'),
+                    'winner_id' => $match->winner_id,
+                    'winner' => $match->winner ? [
+                        'id' => $match->winner->id,
+                        'name' => $match->winner->name,
+                    ] : null,
+                    'status' => $match->status,
+                    'created_by' => $match->created_by,
+                    'creator' => $match->creator ? [
+                        'id' => $match->creator->id,
+                        'name' => $match->creator->name,
+                        'email' => $match->creator->email,
+                    ] : null,
+                    'created_at' => $match->created_at,
+                    'updated_at' => $match->updated_at,
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Failed to update match', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update match',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a match.
+     */
+    public function deleteMatch(Request $request, $id): JsonResponse
+    {
+        // Manually authenticate to avoid infinite recursion
+        $admin = $this->getAuthenticatedAdmin($request);
+        
+        if (!$admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated. Please login first.',
+            ], 401);
+        }
+
+        try {
+            // Find the match and verify it belongs to this admin
+            $match = GameMatch::where('id', $id)
+                ->where('created_by', $admin->id)
+                ->first();
+
+            if (!$match) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Match not found or you do not have permission to delete it.',
+                ], 404);
+            }
+
+            // Delete the match
+            $match->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Match deleted successfully',
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Failed to delete match', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete match',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

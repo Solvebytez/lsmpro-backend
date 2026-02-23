@@ -111,6 +111,8 @@ Route::prefix('v1/admin')->group(function () {
     Route::post('/matches', [MatchController::class, 'createMatch']);
     Route::get('/matches', [MatchController::class, 'listMatches']);
     Route::get('/matches/{id}', [MatchController::class, 'getMatch']);
+    Route::put('/matches/{id}', [MatchController::class, 'updateMatch']);
+    Route::delete('/matches/{id}', [MatchController::class, 'deleteMatch']);
     
     // Entry management routes (authentication handled manually in controller)
     Route::post('/entries', [EntryController::class, 'createEntry']);
