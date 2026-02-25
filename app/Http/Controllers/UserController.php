@@ -95,9 +95,50 @@ class UserController extends Controller
             $commission = $validated['commission_type'] === 'no_commission' ? 0 : ($validated['commission'] ?? 0);
             $sessionCommission = $validated['session_commission_type'] === 'no_commission' ? 0 : ($validated['session_commission'] ?? 0);
             
+            // Check for duplicate names and auto-append number if needed
+            $baseName = trim($validated['name']);
+            $finalName = $baseName;
+            
+            // Get all users created by this admin with names starting with the base name
+            // This helps us find "Base Name", "Base Name 1", "Base Name 2", etc.
+            $allUsers = User::where('created_by', $admin->id)
+                ->where('name', 'LIKE', $baseName . '%')
+                ->get();
+            
+            // Check if exact name exists or find numbered versions
+            $exactMatch = $allUsers->firstWhere('name', $baseName);
+            
+            if ($exactMatch) {
+                // Base name exists, find all numbered versions
+                $usedNumbers = [];
+                
+                // Check for exact match (no number)
+                $usedNumbers[] = 0;
+                
+                // Find all numbered versions (e.g., "Base Name 1", "Base Name 2")
+                foreach ($allUsers as $user) {
+                    if ($user->name !== $baseName) {
+                        // Check if it matches pattern "Base Name X" where X is a number
+                        $pattern = '/^' . preg_quote($baseName, '/') . ' (\d+)$/';
+                        if (preg_match($pattern, $user->name, $matches)) {
+                            $usedNumbers[] = (int)$matches[1];
+                        }
+                    }
+                }
+                
+                // Find the next available number
+                $nextNumber = 1;
+                while (in_array($nextNumber, $usedNumbers)) {
+                    $nextNumber++;
+                }
+                
+                // Append the number to the name
+                $finalName = $baseName . ' ' . $nextNumber;
+            }
+            
             // Create the user
             $user = User::create([
-                'name' => $validated['name'],
+                'name' => $finalName,
                 'email' => null, // No longer required
                 'mobile' => null, // No longer required
                 'password' => null, // No longer required
