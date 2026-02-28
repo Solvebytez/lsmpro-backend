@@ -186,16 +186,37 @@ class EntryController extends Controller
 
             // Get entries for this match
             // Optionally filter by user_id if provided in query parameter
-            $query = Entry::with([
-                'user',
-                'creator'
+            // Optimize: Only load necessary relationships and columns
+            $userId = $request->query('user_id');
+            
+            $query = Entry::select([
+                'id',
+                'match_id',
+                'user_scope',
+                'user_id',
+                'favourite_team',
+                'team1_rate',
+                'team1_amount',
+                'team2_rate',
+                'team2_amount',
+                'created_by',
+                'created_at',
+                'updated_at'
             ])
                 ->where('match_id', $matchId);
             
-            // Filter by user_id if provided and not "all"
-            $userId = $request->query('user_id');
+            // Filter by user_id if provided and not "all" (database-level filtering)
             if ($userId && $userId !== 'all' && $userId !== '') {
                 $query->where('user_id', $userId);
+            }
+            
+            // Only eager load relationships that are actually needed
+            // Load user only if user_id is present (for customer name)
+            if ($userId && $userId !== 'all' && $userId !== '') {
+                $query->with(['user:id,name']); // Only load id and name
+            } else {
+                // Load user for all entries, but only id and name
+                $query->with(['user:id,name']);
             }
             
             $entries = $query

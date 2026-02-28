@@ -165,13 +165,38 @@ class SessionController extends Controller
 
         try {
             // Filter sessions to only show those created by this admin
-            $query = Session::with(['match.team1', 'match.team2', 'user.groups', 'creator:id,name,email'])
+            // Optimize: Select only necessary columns and reduce eager loading
+            $query = Session::select([
+                'id',
+                'match_id',
+                'user_id',
+                'inning_over',
+                'entry_run',
+                'amount',
+                'is_yes',
+                'result',
+                'net_profit_loss',
+                'created_by',
+                'created_at',
+                'updated_at'
+            ])
                 ->where('created_by', $admin->id);
             
-            // Filter by match_id if provided
+            // Filter by match_id if provided (database-level filtering)
             if ($request->has('match_id') && $request->match_id) {
                 $query->where('match_id', $request->match_id);
             }
+            
+            // Only load relationships that are actually needed
+            // Load match with teams only if we need match_name
+            $query->with([
+                'match:id,team1_id,team2_id',
+                'match.team1:id,name',
+                'match.team2:id,name',
+                'user:id,name',
+                'user.groups:id,name', // Only load id and name for groups
+                'creator:id,name,email'
+            ]);
             
             $sessions = $query->orderBy('created_at', 'desc')
                 ->get()
