@@ -64,14 +64,18 @@ Route::prefix('v1/superadmin')->group(function () {
     // Temporarily removed auth:sanctum middleware to avoid infinite recursion
     // Authentication is handled manually in the controller
     Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/me', [SuperAdminAuthController::class, 'me']);
-        Route::put('/admins/{id}', [SuperAdminAuthController::class, 'updateAdmin']);
+        // Route moved outside to handle auth manually
     });
     
     // Routes without auth:sanctum middleware (authentication handled manually in controller)
+    Route::get('/me', [SuperAdminAuthController::class, 'me']);
+    
+    // Routes without auth:sanctum middleware (authentication handled manually in controller)
     Route::post('/logout', [SuperAdminAuthController::class, 'logout']);
+    Route::post('/change-password', [SuperAdminAuthController::class, 'changePassword']);
     Route::get('/admins', [SuperAdminAuthController::class, 'listAdmins']);
     Route::post('/create-admin', [SuperAdminAuthController::class, 'createAdmin']);
+    Route::put('/admins/{id}', [SuperAdminAuthController::class, 'updateAdmin']);
     Route::patch('/admins/{id}/status', [SuperAdminAuthController::class, 'updateStatus']);
     Route::delete('/admins/{id}', [SuperAdminAuthController::class, 'deleteAdmin']);
 });

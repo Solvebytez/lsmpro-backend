@@ -670,5 +670,61 @@ class SuperAdminAuthController extends Controller
             ],
         ], 200);
     }
+
+    /**
+     * Handle superadmin change password request.
+     */
+    public function changePassword(Request $request)
+    {
+        // Manually authenticate to avoid infinite recursion
+        $admin = $this->getAuthenticatedUser($request);
+        
+        if (!$admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 401);
+        }
+
+        // Ensure only superadmin can change password
+        if ($admin->role !== 'superadmin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Only superadmin can change password.',
+            ], 403);
+        }
+
+        // Validate request
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:6',
+            'confirmation_password' => 'required|string|same:new_password',
+        ]);
+
+        // Verify current password
+        if (!Hash::check($request->current_password, $admin->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect',
+            ], 422);
+        }
+
+        // Check if new password is different from current password
+        if (Hash::check($request->new_password, $admin->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'New password must be different from current password',
+            ], 422);
+        }
+
+        // Update password
+        $admin->password = Hash::make($request->new_password);
+        $admin->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password changed successfully',
+        ], 200);
+    }
 }
 
