@@ -93,56 +93,59 @@ Route::prefix('v1/admin')->group(function () {
     });
     
     // Routes without auth:sanctum middleware (authentication handled manually in controller)
-    Route::post('/logout', [AdminAuthController::class, 'logout']);
-    Route::post('/change-password', [AdminAuthController::class, 'changePassword']);
-    
-    // User management routes (authentication handled manually in controller)
-    Route::post('/users', [UserController::class, 'createUser']);
-    Route::get('/users', [UserController::class, 'listUsers']);
-    Route::put('/users/{id}', [UserController::class, 'updateUser']);
-    Route::patch('/users/{id}/status', [UserController::class, 'updateStatus']);
-    Route::delete('/users/{id}', [UserController::class, 'deleteUser']);
-    
-    // Team management routes (authentication handled manually in controller)
-    Route::post('/teams', [TeamController::class, 'createTeam']);
-    Route::get('/teams', [TeamController::class, 'listTeams']);
-    Route::put('/teams/{id}', [TeamController::class, 'updateTeam']);
-    Route::post('/teams/{id}', [TeamController::class, 'updateTeam']); // POST for file uploads with method spoofing
-    Route::patch('/teams/{id}/status', [TeamController::class, 'updateStatus']);
-    Route::delete('/teams/{id}', [TeamController::class, 'deleteTeam']);
-    
-    // Match management routes (authentication handled manually in controller)
-    Route::post('/matches', [MatchController::class, 'createMatch']);
-    Route::get('/matches', [MatchController::class, 'listMatches']);
-    Route::get('/matches/{id}', [MatchController::class, 'getMatch']);
-    Route::put('/matches/{id}', [MatchController::class, 'updateMatch']);
-    Route::delete('/matches/{id}', [MatchController::class, 'deleteMatch']);
-    
-    // Entry management routes (authentication handled manually in controller)
-    Route::post('/entries', [EntryController::class, 'createEntry']);
-    Route::get('/matches/{matchId}/entries', [EntryController::class, 'listEntries']);
-    Route::get('/entries/{id}', [EntryController::class, 'getEntry']);
-    Route::put('/entries/{id}', [EntryController::class, 'updateEntry']);
-    Route::delete('/entries/{id}', [EntryController::class, 'deleteEntry']);
-    
-    // Group management routes (authentication handled manually in controller)
-    Route::post('/groups', [GroupController::class, 'createGroup']);
-    Route::get('/groups', [GroupController::class, 'listGroups']);
-    Route::put('/groups/{id}', [GroupController::class, 'updateGroup']);
-    Route::delete('/groups/{id}', [GroupController::class, 'deleteGroup']);
-    
-    // Innings/Over management routes (authentication handled manually in controller)
-    Route::post('/innings-overs', [InningsOverController::class, 'createInningsOver']);
-    Route::get('/innings-overs', [InningsOverController::class, 'listInningsOvers']);
-    Route::put('/innings-overs/{id}', [InningsOverController::class, 'updateInningsOver']);
-    Route::delete('/innings-overs/{id}', [InningsOverController::class, 'deleteInningsOver']);
-    
-    // Session management routes (authentication handled manually in controller)
-    Route::post('/sessions', [SessionController::class, 'createSession']);
-    Route::get('/sessions', [SessionController::class, 'listSessions']);
-    Route::put('/sessions/{id}', [SessionController::class, 'updateSession']);
-    Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
-    Route::post('/sessions/update-result', [SessionController::class, 'updateResultByInningsOver']);
+    // Apply rate limiting to prevent abuse
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::post('/logout', [AdminAuthController::class, 'logout']);
+        Route::post('/change-password', [AdminAuthController::class, 'changePassword']);
+        
+        // User management routes (authentication handled manually in controller)
+        Route::post('/users', [UserController::class, 'createUser']);
+        Route::get('/users', [UserController::class, 'listUsers']);
+        Route::put('/users/{id}', [UserController::class, 'updateUser']);
+        Route::patch('/users/{id}/status', [UserController::class, 'updateStatus']);
+        Route::delete('/users/{id}', [UserController::class, 'deleteUser']);
+        
+        // Team management routes (authentication handled manually in controller)
+        Route::post('/teams', [TeamController::class, 'createTeam']);
+        Route::get('/teams', [TeamController::class, 'listTeams']);
+        Route::put('/teams/{id}', [TeamController::class, 'updateTeam']);
+        Route::post('/teams/{id}', [TeamController::class, 'updateTeam']); // POST for file uploads with method spoofing
+        Route::patch('/teams/{id}/status', [TeamController::class, 'updateStatus']);
+        Route::delete('/teams/{id}', [TeamController::class, 'deleteTeam']);
+        
+        // Match management routes (authentication handled manually in controller)
+        Route::post('/matches', [MatchController::class, 'createMatch']);
+        Route::get('/matches', [MatchController::class, 'listMatches']);
+        Route::get('/matches/{id}', [MatchController::class, 'getMatch']);
+        Route::put('/matches/{id}', [MatchController::class, 'updateMatch']);
+        Route::delete('/matches/{id}', [MatchController::class, 'deleteMatch']);
+        
+        // Entry management routes - stricter rate limiting for rapid submissions
+        Route::post('/entries', [EntryController::class, 'createEntry'])->middleware('throttle:30,1');
+        Route::get('/matches/{matchId}/entries', [EntryController::class, 'listEntries']);
+        Route::get('/entries/{id}', [EntryController::class, 'getEntry']);
+        Route::put('/entries/{id}', [EntryController::class, 'updateEntry'])->middleware('throttle:30,1');
+        Route::delete('/entries/{id}', [EntryController::class, 'deleteEntry']);
+        
+        // Group management routes (authentication handled manually in controller)
+        Route::post('/groups', [GroupController::class, 'createGroup']);
+        Route::get('/groups', [GroupController::class, 'listGroups']);
+        Route::put('/groups/{id}', [GroupController::class, 'updateGroup']);
+        Route::delete('/groups/{id}', [GroupController::class, 'deleteGroup']);
+        
+        // Innings/Over management routes (authentication handled manually in controller)
+        Route::post('/innings-overs', [InningsOverController::class, 'createInningsOver']);
+        Route::get('/innings-overs', [InningsOverController::class, 'listInningsOvers']);
+        Route::put('/innings-overs/{id}', [InningsOverController::class, 'updateInningsOver']);
+        Route::delete('/innings-overs/{id}', [InningsOverController::class, 'deleteInningsOver']);
+        
+        // Session management routes (authentication handled manually in controller)
+        Route::post('/sessions', [SessionController::class, 'createSession']);
+        Route::get('/sessions', [SessionController::class, 'listSessions']);
+        Route::put('/sessions/{id}', [SessionController::class, 'updateSession']);
+        Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
+        Route::post('/sessions/update-result', [SessionController::class, 'updateResultByInningsOver']);
+    });
 });
 
 // Common Authentication Routes (works for both admin and superadmin)
