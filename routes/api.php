@@ -113,20 +113,6 @@ Route::prefix('v1/admin')->group(function () {
         Route::patch('/teams/{id}/status', [TeamController::class, 'updateStatus']);
         Route::delete('/teams/{id}', [TeamController::class, 'deleteTeam']);
         
-        // Match management routes (authentication handled manually in controller)
-        Route::post('/matches', [MatchController::class, 'createMatch']);
-        Route::get('/matches', [MatchController::class, 'listMatches']);
-        Route::get('/matches/{id}', [MatchController::class, 'getMatch']);
-        Route::put('/matches/{id}', [MatchController::class, 'updateMatch']);
-        Route::delete('/matches/{id}', [MatchController::class, 'deleteMatch']);
-        
-        // Entry management routes - stricter rate limiting for rapid submissions
-        Route::post('/entries', [EntryController::class, 'createEntry'])->middleware('throttle:30,1');
-        Route::get('/matches/{matchId}/entries', [EntryController::class, 'listEntries']);
-        Route::get('/entries/{id}', [EntryController::class, 'getEntry']);
-        Route::put('/entries/{id}', [EntryController::class, 'updateEntry'])->middleware('throttle:30,1');
-        Route::delete('/entries/{id}', [EntryController::class, 'deleteEntry']);
-        
         // Group management routes (authentication handled manually in controller)
         Route::post('/groups', [GroupController::class, 'createGroup']);
         Route::get('/groups', [GroupController::class, 'listGroups']);
@@ -138,6 +124,23 @@ Route::prefix('v1/admin')->group(function () {
         Route::get('/innings-overs', [InningsOverController::class, 'listInningsOvers']);
         Route::put('/innings-overs/{id}', [InningsOverController::class, 'updateInningsOver']);
         Route::delete('/innings-overs/{id}', [InningsOverController::class, 'deleteInningsOver']);
+    });
+    
+    // High-frequency routes - Allow fast, random submissions (1000 requests per minute)
+    Route::middleware('throttle:1000,1')->group(function () {
+        // Match management routes (authentication handled manually in controller)
+        Route::post('/matches', [MatchController::class, 'createMatch']);
+        Route::get('/matches', [MatchController::class, 'listMatches']);
+        Route::get('/matches/{id}', [MatchController::class, 'getMatch']);
+        Route::put('/matches/{id}', [MatchController::class, 'updateMatch']);
+        Route::delete('/matches/{id}', [MatchController::class, 'deleteMatch']);
+        
+        // Entry management routes - High limit for rapid submissions
+        Route::post('/entries', [EntryController::class, 'createEntry']);
+        Route::get('/matches/{matchId}/entries', [EntryController::class, 'listEntries']);
+        Route::get('/entries/{id}', [EntryController::class, 'getEntry']);
+        Route::put('/entries/{id}', [EntryController::class, 'updateEntry']);
+        Route::delete('/entries/{id}', [EntryController::class, 'deleteEntry']);
         
         // Session management routes (authentication handled manually in controller)
         Route::post('/sessions', [SessionController::class, 'createSession']);
