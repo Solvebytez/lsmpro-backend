@@ -81,7 +81,9 @@ class CookieHelper
     public static function clearAccessToken(Response|JsonResponse $response): Response|JsonResponse
     {
         $isSecure = env('APP_ENV') === 'production';
-        $domain = $isSecure ? '.lsmpro.in' : null;
+        // IMPORTANT: domain must match the one used when setting the cookie,
+        // otherwise browsers may not delete the intended cookie.
+        $domain = $isSecure ? 'lsmpro.in' : null;
         return $response->cookie('access_token', '', -1, '/', $domain, $isSecure, true, true, 'Lax');
     }
 
@@ -91,7 +93,8 @@ class CookieHelper
     public static function clearRefreshToken(Response|JsonResponse $response): Response|JsonResponse
     {
         $isSecure = env('APP_ENV') === 'production';
-        $domain = $isSecure ? '.lsmpro.in' : null;
+        // IMPORTANT: domain must match the one used when setting the cookie.
+        $domain = $isSecure ? 'lsmpro.in' : null;
         return $response->cookie('refresh_token', '', -1, '/', $domain, $isSecure, true, true, 'Lax');
     }
 
