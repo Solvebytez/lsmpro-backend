@@ -11,6 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // `matches` is already created by 2024_01_01_000030_create_matches_table.
+        // This migration was a duplicate schema; keep a no-op so later migrations can run.
+        if (Schema::hasTable('matches')) {
+            return;
+        }
+
         Schema::create('matches', function (Blueprint $table) {
             $table->id();
             $table->foreignId('team1_id')->constrained('teams')->onDelete('cascade');
@@ -20,8 +26,6 @@ return new class extends Migration
             $table->enum('status', ['scheduled', 'in_progress', 'completed', 'cancelled'])->default('scheduled');
             $table->foreignId('created_by')->nullable()->constrained('admins')->onDelete('set null');
             $table->timestamps();
-            
-            // Note: team1_id != team2_id validation is handled in the controller
         });
     }
 
@@ -30,6 +34,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('matches');
+        // Do not drop `matches`; table is owned by 2024_01_01_000030_create_matches_table.
     }
 };

@@ -1,0 +1,13 @@
+/vendor
+/node_modules
+.git
+.gitignore
+*.md
+.phpunit.result.cache
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*
+.env.backup
+.DS_Store

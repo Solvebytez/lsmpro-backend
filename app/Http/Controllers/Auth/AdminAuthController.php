@@ -191,7 +191,14 @@ class AdminAuthController extends Controller
      */
     public function me(Request $request)
     {
-        $admin = $request->user();
+        $admin = $this->getAuthenticatedUser($request);
+
+        if (! $admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 401);
+        }
 
         return response()->json([
             'success' => true,

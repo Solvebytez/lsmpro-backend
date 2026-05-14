@@ -86,14 +86,8 @@ Route::prefix('v1/admin')->group(function () {
     Route::post('/login', [AdminAuthController::class, 'login']);
     Route::post('/refresh', [AdminAuthController::class, 'refresh']);
     
-    // Protected routes (require authentication)
-    // Temporarily removed auth:sanctum middleware to avoid infinite recursion
-    // Authentication is handled manually in the controller
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/me', [AdminAuthController::class, 'me']); // Keep for backward compatibility
-    });
-    
     // Unlimited routes (no throttle). Authentication is handled manually in controllers.
+    Route::get('/me', [AdminAuthController::class, 'me']);
     Route::post('/logout', [AdminAuthController::class, 'logout']);
     Route::post('/change-password', [AdminAuthController::class, 'changePassword']);
     
